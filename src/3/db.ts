@@ -1,6 +1,5 @@
 import DataLoader from "dataloader";
 import chalk from "chalk";
-import { LRUMap } from "lru_map";
 import { createDatabase, createFactory } from "typical-data";
 import _ from "lodash";
 
@@ -126,9 +125,7 @@ export function generateDataLoaders() {
       return fakeDb.findManyAuthors(keys);
     },
     {
-      cacheMap: new LRUMap(100),
-
-      batchScheduleFn: (callback) => setTimeout(callback, 1000),
+      // batchScheduleFn: (callback) => setTimeout(callback, 1000),
     }
   );
 
@@ -149,8 +146,7 @@ export function generateDataLoaders() {
       return results;
     },
     {
-      cacheMap: new LRUMap(100), // Use an LRU cache to limit memory usage
-      batchScheduleFn: (callback) => setTimeout(callback, 1000), // Configure batch scheduling
+      // batchScheduleFn: (callback) => setTimeout(callback, 1000), // Configure batch scheduling
     }
   );
 
