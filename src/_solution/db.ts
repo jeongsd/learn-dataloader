@@ -65,93 +65,99 @@ export async function findReviewsByProductId(productId: string) {
 }
 
 db.products.createList(100);
-db.authors.createList(100);
+db.authors.createList(1000);
 db.reviews.createList(1000);
 
 async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const fakeDelayMap = {
+  findManyProducts: 0,
+  findReviewsByProductId: 0,
+  findReviewsByProductIds: 0,
+  findAuthorById: 0,
+  findManyAuthors: 0,
+};
+
+async function logAndDelay(msg: string, key: keyof typeof fakeDelayMap) {
+  const ms = fakeDelayMap[key] * 100;
+  fakeDelayMap[key] += 1;
+  console.log("start", msg);
+  await delay(ms);
+  console.log("end", msg);
+  fakeDelayMap[key] -= 1;
+}
+
 export const fakeDb = {
   findManyProducts: async () => {
-    // SQL Query
-    console.log(chalk.yellow("SELECT * FROM products"));
-    await delay(1000);
+    await logAndDelay(
+      chalk.yellow("SELECT * FROM products"),
+      "findManyProducts"
+    );
+
     return db.products.all();
   },
   findReviewsByProductId: async (productId: string) => {
-    // SQL Query
-    console.log(
-      chalk.green("SELECT * FROM reviews WHERE productId = ?", productId)
+    await logAndDelay(
+      chalk.green("SELECT * FROM reviews WHERE productId = ?", productId),
+      "findReviewsByProductId"
     );
-    await delay(1000);
-    return db.reviews.all().filter(
-      // @ts-ignore
-      (review) => review.productId === productId
-    );
-  },
-  findReviewsByProductIds: async (productIds: readonly string[]) => {
-    // SQL Query
-    console.log(
-      chalk.green("SELECT * FROM reviews WHERE productId IN ?", productIds)
-    );
-    await delay(1000);
     return db.reviews
       .all()
-      .filter((review) => productIds.includes(review.productId));
+      .filter((review: Review) => review.productId === productId);
+  },
+  findReviewsByProductIds: async (productIds: readonly string[]) => {
+    await logAndDelay(
+      chalk.green("SELECT * FROM reviews WHERE productId IN ?", productIds),
+      "findReviewsByProductIds"
+    );
+
+    return db.reviews
+      .all()
+      .filter((review: any) => productIds.includes(review.productId));
   },
   findAuthorById: async (authorId: string) => {
-    // SQL Query
-    console.log(chalk.magenta("SELECT * FROM authors WHERE id = ?", authorId));
-
-    await delay(2000);
-    return db.authors.find((author) => author.id === authorId);
+    await logAndDelay(
+      chalk.magenta("SELECT * FROM authors WHERE id = ?", authorId),
+      "findAuthorById"
+    );
+    return db.authors.find((author: any) => author.id === authorId);
   },
   findManyAuthors: async (authorIds: readonly string[]) => {
-    // SQL Query
-    console.log(
-      chalk.magenta("SELECT * FROM authors WHERE id IN ?", authorIds)
+    await logAndDelay(
+      chalk.magenta("SELECT * FROM authors WHERE id IN ?", authorIds),
+      "findManyAuthors"
     );
-    await delay(2000);
-    return db.authors.all().filter((author) => authorIds.includes(author.id));
+    return db.authors
+      .all()
+      .filter((author: any) => authorIds.includes(author.id));
   },
 };
 
-export function generateDataLoaders() {
-  type ProductId = string;
-
-  const authorDataLoader = new DataLoader<ProductId, Review>(
-    async (keys: readonly ProductId[]) => {
+export function createLoaders() {
+  const authorDataLoader = new DataLoader<string, Author>(
+    async (keys: readonly string[]) => {
       return fakeDb.findManyAuthors(keys);
-    },
-    {
-      // batchScheduleFn: (callback) => setTimeout(callback, 1000),
     }
   );
 
-  type ReviewKey = string; // Using the Product ID as the key for loading reviews
-  const reviewDataLoader = new DataLoader<ReviewKey, Review[]>(
-    async (productIds: readonly ReviewKey[]) => {
-      // Fetch reviews for all product IDs in a single call
+  const reviewDataLoader = new DataLoader<string, Review[]>(
+    async (productIds: readonly string[]) => {
       const allReviews = await fakeDb.findReviewsByProductIds(productIds);
 
-      // Map the fetched reviews back to the input keys
       const reviewsMappedByProductId = _.groupBy(allReviews, "productId");
 
-      // Ensure the order and presence of results for each key
       const results = productIds.map(
         (productId) => reviewsMappedByProductId[productId] || []
       );
 
       return results;
-    },
-    {
-      // batchScheduleFn: (callback) => setTimeout(callback, 1000), // Configure batch scheduling
     }
   );
 
   return {
-    authorLoader: authorDataLoader,
-    reviewLoader: reviewDataLoader,
+    authors: authorDataLoader,
+    reviews: reviewDataLoader,
   };
 }

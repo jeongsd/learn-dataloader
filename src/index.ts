@@ -1,14 +1,13 @@
 import { Elysia } from "elysia";
 import chalk from "chalk";
 import { yoga } from "@elysiajs/graphql-yoga";
-import { fakeDb, generateDataLoaders } from "./db";
+import { fakeDb } from "./db";
 
 const app = new Elysia()
   .use(
     yoga({
       context: () => ({
         fakeDb,
-        dataLoaders: generateDataLoaders(),
       }),
       typeDefs: /* GraphQL */ `
         type Query {
@@ -35,18 +34,13 @@ const app = new Elysia()
       resolvers: {
         Query: {
           topProducts: async (_, _args, context) => {
-            console.log(`findManyProducts()`);
-
             return context.fakeDb.findManyProducts();
           },
         },
         Product: {
           // @ts-ignore
           reviews: async (product, _args, context) => {
-            // return context.fakeDb.findReviewsByProductId(product.id);
-            const result = await context.dataLoaders.review.load(product.id);
-
-            return result;
+            return context.fakeDb.findReviewsByProductId(product.id);
           },
         },
 
@@ -54,8 +48,7 @@ const app = new Elysia()
         Review: {
           // @ts-ignore
           author: async (review, _args, context) => {
-            // return context.fakeDb.findAuthorById(review.authorId);
-            return context.dataLoaders.author.load(review.authorId);
+            return context.fakeDb.findAuthorById(review.authorId);
           },
         },
       },

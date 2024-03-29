@@ -1,13 +1,14 @@
 import { Elysia } from "elysia";
 import { yoga } from "@elysiajs/graphql-yoga";
-import { fakeDb } from "./db";
+import { fakeDb, createLoaders } from "./db";
 
 const app = new Elysia()
   .use(
     yoga({
-      context: {
+      context: () => ({
         fakeDb,
-      },
+        loaders: createLoaders(),
+      }),
       typeDefs: /* GraphQL */ `
         type Query {
           topProducts: [Product!]!
@@ -33,15 +34,15 @@ const app = new Elysia()
       resolvers: {
         Query: {
           topProducts: async (_, _args, context) => {
-            console.log(`findManyProducts()`);
-
             return context.fakeDb.findManyProducts();
           },
         },
         Product: {
           // @ts-ignore
           reviews: async (product, _args, context) => {
-            return context.fakeDb.findReviewsByProductId(product.id);
+            const result = await context.loaders.reviews.load(product.id);
+
+            return result;
           },
         },
 
@@ -49,7 +50,7 @@ const app = new Elysia()
         Review: {
           // @ts-ignore
           author: async (review, _args, context) => {
-            return context.fakeDb.findAuthorById(review.authorId);
+            return context.loaders.authors.load(review.authorId);
           },
         },
       },
